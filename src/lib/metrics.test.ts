@@ -54,4 +54,10 @@ describe("calcularMetricasDashboard", () => {
     const m = calcularMetricasDashboard([], interacoes, HOJE);
     expect(m.tarefasAtrasadas).toBe(1);
   });
+
+  it("nao conta como atrasada uma tarefa pendente com data_referencia igual a hoje", () => {
+    const interacoes = [interacao({ status: "pendente", data_referencia: "2026-08-28" })];
+    const m = calcularMetricasDashboard([], interacoes, HOJE);
+    expect(m.tarefasAtrasadas).toBe(0);
+  });
 });
