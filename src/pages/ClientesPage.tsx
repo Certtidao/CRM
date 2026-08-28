@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGrid, List } from "lucide-react";
 import { listContacts } from "@/lib/api/contacts";
-import { listDeals } from "@/lib/api/deals";
+import { listDeals, updateDealEstagio } from "@/lib/api/deals";
 import { listAccessLogs } from "@/lib/api/accessLogs";
 import { calcularSinaisRisco } from "@/lib/risco";
 import type { AccessLog, Contact, Deal, Estagio, NivelRisco } from "@/lib/types";
@@ -37,33 +37,39 @@ export default function ClientesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [view, setView] = useState<"lista" | "kanban">("kanban");
   const [busca, setBusca] = useState("");
+  const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
+  const [atualizandoEstagio, setAtualizandoEstagio] = useState(false);
+
+  async function carregar() {
+    setErro(null);
+    try {
+      const [contacts, deals, accessLogs] = await Promise.all([listContacts(), listDeals(), listAccessLogs()]);
+      const logsByContact = new Map<string, AccessLog[]>();
+      for (const log of accessLogs) {
+        const list = logsByContact.get(log.contact_id) ?? [];
+        list.push(log);
+        logsByContact.set(log.contact_id, list);
+      }
+      const dealByContact = new Map(deals.map((d) => [d.contact_id, d]));
+      const hoje = new Date();
+      setRows(
+        contacts.map((contact) => ({
+          contact,
+          deal: dealByContact.get(contact.id),
+          nivelRisco: calcularSinaisRisco(contact, logsByContact.get(contact.id) ?? [], hoje).nivelRisco,
+        })),
+      );
+    } catch (e) {
+      console.error(e);
+      setErro("Não foi possível carregar os dados. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [contacts, deals, accessLogs] = await Promise.all([listContacts(), listDeals(), listAccessLogs()]);
-        const logsByContact = new Map<string, AccessLog[]>();
-        for (const log of accessLogs) {
-          const list = logsByContact.get(log.contact_id) ?? [];
-          list.push(log);
-          logsByContact.set(log.contact_id, list);
-        }
-        const dealByContact = new Map(deals.map((d) => [d.contact_id, d]));
-        const hoje = new Date();
-        setRows(
-          contacts.map((contact) => ({
-            contact,
-            deal: dealByContact.get(contact.id),
-            nivelRisco: calcularSinaisRisco(contact, logsByContact.get(contact.id) ?? [], hoje).nivelRisco,
-          })),
-        );
-      } catch (e) {
-        console.error(e);
-        setErro("Não foi possível carregar os dados. Tente novamente.");
-      } finally {
-        setLoading(false);
-      }
-    })();
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtradas = useMemo(() => {
@@ -80,6 +86,34 @@ export default function ClientesPage() {
     }
     return grupos;
   }, [filtradas]);
+
+  function onDragStartCard(dealId: string) {
+    setDraggingDealId(dealId);
+  }
+
+  function onDragOverColuna(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+  }
+
+  async function onDropColuna(estagioDestino: Estagio) {
+    const dealId = draggingDealId;
+    setDraggingDealId(null);
+    if (!dealId) return;
+
+    const rowAtual = rows.find((r) => r.deal?.id === dealId);
+    if (!rowAtual?.deal || rowAtual.deal.estagio === estagioDestino) return;
+
+    setAtualizandoEstagio(true);
+    try {
+      await updateDealEstagio(dealId, estagioDestino);
+    } catch (e) {
+      console.error(e);
+      setErro("Não foi possível mover o cliente. Tente novamente.");
+    } finally {
+      setAtualizandoEstagio(false);
+      await carregar();
+    }
+  }
 
   if (erro) return <div className="text-sm text-destructive">{erro}</div>;
 
@@ -121,17 +155,26 @@ export default function ClientesPage() {
       {view === "kanban" ? (
         <div className="grid grid-cols-4 gap-4">
           {ESTAGIOS.map((estagio) => (
-            <div key={estagio} className="rounded-lg border bg-card p-3">
+            <div
+              key={estagio}
+              className="rounded-lg border bg-card p-3"
+              onDragOver={onDragOverColuna}
+              onDrop={() => onDropColuna(estagio)}
+            >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-semibold">{ESTAGIO_LABELS[estagio]}</span>
                 <span className="text-xs text-muted-foreground">{porEstagio[estagio].length}</span>
               </div>
               <div className="flex flex-col gap-2">
-                {porEstagio[estagio].map(({ contact, nivelRisco }) => (
+                {porEstagio[estagio].map(({ contact, deal, nivelRisco }) => (
                   <Link
                     key={contact.id}
                     to={`/clientes/${contact.id}`}
-                    className="block rounded-md border p-3 text-sm hover:bg-accent"
+                    draggable={!!deal && !atualizandoEstagio}
+                    onDragStart={() => deal && onDragStartCard(deal.id)}
+                    className={`block rounded-md border p-3 text-sm hover:bg-accent ${
+                      deal ? "cursor-grab active:cursor-grabbing" : ""
+                    }`}
                   >
                     <div className="font-medium">{contact.nome}</div>
                     <div className="mt-1 text-xs text-muted-foreground">{contact.segmento}</div>
