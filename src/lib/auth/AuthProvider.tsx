@@ -38,11 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      checkStaffAndSet(data.session?.user ?? null);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setLoading(true);
+    // onAuthStateChange fires an INITIAL_SESSION event immediately upon
+    // subscription with the current session (or null), so there is no need
+    // for a separate supabase.auth.getSession() call — that would run
+    // checkStaffAndSet twice (two RPC round-trips + a loading-state flicker)
+    // for the same initial session.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event !== "INITIAL_SESSION") {
+        setLoading(true);
+      }
       checkStaffAndSet(session?.user ?? null);
     });
     return () => sub.subscription.unsubscribe();
