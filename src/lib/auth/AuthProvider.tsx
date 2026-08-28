@@ -6,6 +6,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   isStaff: boolean;
+  accessDenied: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -16,6 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   async function checkStaffAndSet(nextUser: User | null) {
     if (!nextUser) {
@@ -25,15 +27,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const { data, error } = await supabase.rpc("is_staff_certtidao");
-    if (error || data !== true) {
-      await supabase.auth.signOut();
+    if (error) {
+      // The RPC call itself failed (network/transient error) — we don't know
+      // the user's staff status, so don't sign them out. Treat as not-yet-
+      // confirmed staff for this render only.
+      console.error("is_staff_certtidao RPC failed:", error);
+      setUser(nextUser);
+      setIsStaff(false);
+      setLoading(false);
+      return;
+    }
+    if (data !== true) {
+      // RPC succeeded and explicitly confirmed the user is not staff.
+      await supabase.auth.signOut({ scope: "local" });
       setUser(null);
       setIsStaff(false);
+      setAccessDenied(true);
       setLoading(false);
       return;
     }
     setUser(nextUser);
     setIsStaff(true);
+    setAccessDenied(false);
     setLoading(false);
   }
 
@@ -53,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signInWithGoogle() {
+    setAccessDenied(false);
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin + "/CRM/" },
@@ -60,11 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, isStaff, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isStaff, accessDenied, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
