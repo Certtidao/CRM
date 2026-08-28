@@ -5,6 +5,7 @@ import { listDealsByContact } from "@/lib/api/deals";
 import { listInteracoesByContact, createInteracao, concludeInteracao } from "@/lib/api/interacoes";
 import { listAccessLogsByContact } from "@/lib/api/accessLogs";
 import { calcularSinaisRisco, type SinaisRisco } from "@/lib/risco";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import type { AccessLog, Contact, Deal, Interacao } from "@/lib/types";
 
 type Aba = "resumo" | "emissoes" | "financeiro" | "marketing" | "timeline";
@@ -18,6 +19,7 @@ const ABAS: { id: Aba; label: string }[] = [
 
 export default function ClientePage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [contact, setContact] = useState<Contact | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [interacoes, setInteracoes] = useState<Interacao[]>([]);
@@ -64,7 +66,7 @@ export default function ClientePage() {
       await createInteracao({
         contact_id: id,
         deal_id: deals[0]?.id ?? null,
-        autor: "Você",
+        autor: user?.email ?? "Desconhecido",
         canal: "outro",
         nota: novaNota.trim(),
         status: "concluido",
