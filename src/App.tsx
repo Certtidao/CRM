@@ -1,11 +1,24 @@
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import LoginPage from "@/pages/LoginPage";
 
 export default function App() {
   return (
     <BrowserRouter basename="/CRM">
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <h1 className="text-2xl font-semibold">CRM Certtidão</h1>
-      </div>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <div className="flex min-h-screen items-center justify-center">CRM Certtidão</div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
