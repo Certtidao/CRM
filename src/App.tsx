@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ClientesPage from "@/pages/ClientesPage";
+import ClientePage from "@/pages/ClientePage";
 
 export default function App() {
   return (
@@ -28,6 +29,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppShell>
                   <ClientesPage />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clientes/:id"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <ClientePage />
                 </AppShell>
               </ProtectedRoute>
             }
