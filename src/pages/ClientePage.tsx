@@ -26,23 +26,30 @@ export default function ClientePage() {
   const [aba, setAba] = useState<Aba>("resumo");
   const [novaNota, setNovaNota] = useState("");
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [concludingId, setConcludingId] = useState<string | null>(null);
 
   async function carregar() {
     if (!id) return;
-    const [c, d, i, a] = await Promise.all([
-      getContact(id),
-      listDealsByContact(id),
-      listInteracoesByContact(id),
-      listAccessLogsByContact(id),
-    ]);
-    setContact(c);
-    setDeals(d);
-    setInteracoes(i);
-    setAccessLogs(a);
-    setRisco(calcularSinaisRisco(c, a, new Date()));
-    setLoading(false);
+    try {
+      const [c, d, i, a] = await Promise.all([
+        getContact(id),
+        listDealsByContact(id),
+        listInteracoesByContact(id),
+        listAccessLogsByContact(id),
+      ]);
+      setContact(c);
+      setDeals(d);
+      setInteracoes(i);
+      setAccessLogs(a);
+      setRisco(calcularSinaisRisco(c, a, new Date()));
+    } catch (e) {
+      console.error(e);
+      setErro("Não foi possível carregar os dados. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -80,6 +87,8 @@ export default function ClientePage() {
       setConcludingId(null);
     }
   }
+
+  if (erro) return <div className="text-sm text-destructive">{erro}</div>;
 
   if (loading || !contact || !risco) return <div className="text-sm text-muted-foreground">Carregando…</div>;
 

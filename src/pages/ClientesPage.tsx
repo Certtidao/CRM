@@ -34,28 +34,35 @@ interface ClienteRow {
 export default function ClientesPage() {
   const [rows, setRows] = useState<ClienteRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [view, setView] = useState<"lista" | "kanban">("kanban");
   const [busca, setBusca] = useState("");
 
   useEffect(() => {
     (async () => {
-      const [contacts, deals, accessLogs] = await Promise.all([listContacts(), listDeals(), listAccessLogs()]);
-      const logsByContact = new Map<string, AccessLog[]>();
-      for (const log of accessLogs) {
-        const list = logsByContact.get(log.contact_id) ?? [];
-        list.push(log);
-        logsByContact.set(log.contact_id, list);
+      try {
+        const [contacts, deals, accessLogs] = await Promise.all([listContacts(), listDeals(), listAccessLogs()]);
+        const logsByContact = new Map<string, AccessLog[]>();
+        for (const log of accessLogs) {
+          const list = logsByContact.get(log.contact_id) ?? [];
+          list.push(log);
+          logsByContact.set(log.contact_id, list);
+        }
+        const dealByContact = new Map(deals.map((d) => [d.contact_id, d]));
+        const hoje = new Date();
+        setRows(
+          contacts.map((contact) => ({
+            contact,
+            deal: dealByContact.get(contact.id),
+            nivelRisco: calcularSinaisRisco(contact, logsByContact.get(contact.id) ?? [], hoje).nivelRisco,
+          })),
+        );
+      } catch (e) {
+        console.error(e);
+        setErro("Não foi possível carregar os dados. Tente novamente.");
+      } finally {
+        setLoading(false);
       }
-      const dealByContact = new Map(deals.map((d) => [d.contact_id, d]));
-      const hoje = new Date();
-      setRows(
-        contacts.map((contact) => ({
-          contact,
-          deal: dealByContact.get(contact.id),
-          nivelRisco: calcularSinaisRisco(contact, logsByContact.get(contact.id) ?? [], hoje).nivelRisco,
-        })),
-      );
-      setLoading(false);
     })();
   }, []);
 
@@ -73,6 +80,8 @@ export default function ClientesPage() {
     }
     return grupos;
   }, [filtradas]);
+
+  if (erro) return <div className="text-sm text-destructive">{erro}</div>;
 
   if (loading) return <div className="text-sm text-muted-foreground">Carregando…</div>;
 

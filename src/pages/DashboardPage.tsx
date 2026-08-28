@@ -13,14 +13,25 @@ const ESTAGIO_LABELS: Record<string, string> = {
 export default function DashboardPage() {
   const [metricas, setMetricas] = useState<MetricasDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [deals, interacoes] = await Promise.all([listDeals(), listInteracoes()]);
-      setMetricas(calcularMetricasDashboard(deals, interacoes, new Date()));
-      setLoading(false);
+      try {
+        const [deals, interacoes] = await Promise.all([listDeals(), listInteracoes()]);
+        setMetricas(calcularMetricasDashboard(deals, interacoes, new Date()));
+      } catch (e) {
+        console.error(e);
+        setErro("Não foi possível carregar os dados. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
+
+  if (erro) {
+    return <div className="text-sm text-destructive">{erro}</div>;
+  }
 
   if (loading || !metricas) {
     return <div className="text-sm text-muted-foreground">Carregando…</div>;
