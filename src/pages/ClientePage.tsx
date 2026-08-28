@@ -26,6 +26,8 @@ export default function ClientePage() {
   const [aba, setAba] = useState<Aba>("resumo");
   const [novaNota, setNovaNota] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [concludingId, setConcludingId] = useState<string | null>(null);
 
   async function carregar() {
     if (!id) return;
@@ -49,23 +51,34 @@ export default function ClientePage() {
   }, [id]);
 
   async function registrarInteracao() {
-    if (!id || !novaNota.trim()) return;
-    await createInteracao({
-      contact_id: id,
-      deal_id: deals[0]?.id ?? null,
-      autor: "Você",
-      canal: "outro",
-      nota: novaNota.trim(),
-      status: "concluido",
-      data_referencia: new Date().toISOString().slice(0, 10),
-    });
-    setNovaNota("");
-    await carregar();
+    if (!id || !novaNota.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await createInteracao({
+        contact_id: id,
+        deal_id: deals[0]?.id ?? null,
+        autor: "Você",
+        canal: "outro",
+        nota: novaNota.trim(),
+        status: "concluido",
+        data_referencia: new Date().toISOString().slice(0, 10),
+      });
+      setNovaNota("");
+      await carregar();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function concluir(interacaoId: string) {
-    await concludeInteracao(interacaoId);
-    await carregar();
+    if (concludingId === interacaoId) return;
+    setConcludingId(interacaoId);
+    try {
+      await concludeInteracao(interacaoId);
+      await carregar();
+    } finally {
+      setConcludingId(null);
+    }
   }
 
   if (loading || !contact || !risco) return <div className="text-sm text-muted-foreground">Carregando…</div>;
@@ -165,7 +178,8 @@ export default function ClientePage() {
               />
               <button
                 onClick={registrarInteracao}
-                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+                disabled={submitting}
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
               >
                 Registrar
               </button>
@@ -188,7 +202,8 @@ export default function ClientePage() {
                     {i.status === "pendente" && (
                       <button
                         onClick={() => concluir(i.id)}
-                        className="mt-2 rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                        disabled={concludingId === i.id}
+                        className="mt-2 rounded-md border px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
                       >
                         Marcar como concluída
                       </button>
