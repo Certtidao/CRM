@@ -3,6 +3,7 @@ import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import LoginPage from "@/pages/LoginPage";
+import DashboardPage from "@/pages/DashboardPage";
 
 export default function App() {
   return (
@@ -15,7 +16,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AppShell>
-                  <div>Dashboard placeholder</div>
+                  <DashboardPage />
                 </AppShell>
               </ProtectedRoute>
             }
