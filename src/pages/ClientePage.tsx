@@ -34,6 +34,7 @@ export default function ClientePage() {
 
   async function carregar() {
     if (!id) return;
+    setErro(null);
     try {
       const [c, d, i, a] = await Promise.all([
         getContact(id),
