@@ -104,14 +104,16 @@ export default function ClientesPage() {
     if (!rowAtual?.deal || rowAtual.deal.estagio === estagioDestino) return;
 
     setAtualizandoEstagio(true);
+    let falhouMover = false;
     try {
       await updateDealEstagio(dealId, estagioDestino);
     } catch (e) {
       console.error(e);
-      setErro("Não foi possível mover o cliente. Tente novamente.");
+      falhouMover = true;
     } finally {
-      setAtualizandoEstagio(false);
       await carregar();
+      setAtualizandoEstagio(false);
+      if (falhouMover) setErro("Não foi possível mover o cliente. Tente novamente.");
     }
   }
 
@@ -159,7 +161,10 @@ export default function ClientesPage() {
               key={estagio}
               className="rounded-lg border bg-card p-3"
               onDragOver={onDragOverColuna}
-              onDrop={() => onDropColuna(estagio)}
+              onDrop={(e) => {
+                e.preventDefault();
+                onDropColuna(estagio);
+              }}
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-semibold">{ESTAGIO_LABELS[estagio]}</span>
@@ -172,6 +177,7 @@ export default function ClientesPage() {
                     to={`/clientes/${contact.id}`}
                     draggable={!!deal && !atualizandoEstagio}
                     onDragStart={() => deal && onDragStartCard(deal.id)}
+                    onDragEnd={() => setDraggingDealId(null)}
                     className={`block rounded-md border p-3 text-sm hover:bg-accent ${
                       deal ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
