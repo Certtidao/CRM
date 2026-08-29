@@ -5,8 +5,8 @@ import { listContacts } from "@/lib/api/contacts";
 import { listDeals, updateDealEstagio } from "@/lib/api/deals";
 import { listAccessLogs } from "@/lib/api/accessLogs";
 import { calcularSinaisRisco } from "@/lib/risco";
-import type { AccessLog, Contact, Deal, Estagio, NivelRisco } from "@/lib/types";
-import { KanbanColuna } from "@/components/KanbanColuna";
+import type { AccessLog, Estagio, NivelRisco } from "@/lib/types";
+import { KanbanColuna, type ClienteRow } from "@/components/KanbanColuna";
 
 const ESTAGIOS: Estagio[] = ["lead", "ativado", "em_risco", "inativo"];
 const ESTAGIO_LABELS: Record<Estagio, string> = {
@@ -25,12 +25,6 @@ const RISCO_LABEL: Record<NivelRisco, string> = {
   atencao: "Atenção",
   risco: "Risco",
 };
-
-interface ClienteRow {
-  contact: Contact;
-  deal: Deal | undefined;
-  nivelRisco: NivelRisco;
-}
 
 export default function ClientesPage() {
   const [rows, setRows] = useState<ClienteRow[]>([]);
