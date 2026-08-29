@@ -6,6 +6,7 @@ import { listDeals, updateDealEstagio } from "@/lib/api/deals";
 import { listAccessLogs } from "@/lib/api/accessLogs";
 import { calcularSinaisRisco } from "@/lib/risco";
 import type { AccessLog, Contact, Deal, Estagio, NivelRisco } from "@/lib/types";
+import { KanbanColuna } from "@/components/KanbanColuna";
 
 const ESTAGIOS: Estagio[] = ["lead", "ativado", "em_risco", "inativo"];
 const ESTAGIO_LABELS: Record<Estagio, string> = {
@@ -39,6 +40,7 @@ export default function ClientesPage() {
   const [busca, setBusca] = useState("");
   const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
   const [atualizandoEstagio, setAtualizandoEstagio] = useState(false);
+  const [dragOverEstagio, setDragOverEstagio] = useState<Estagio | null>(null);
 
   async function carregar() {
     setErro(null);
@@ -91,13 +93,26 @@ export default function ClientesPage() {
     setDraggingDealId(dealId);
   }
 
-  function onDragOverColuna(event: DragEvent<HTMLDivElement>) {
+  function onDragOverColuna(event: DragEvent<HTMLDivElement>, estagio: Estagio) {
     event.preventDefault();
+    setDragOverEstagio(estagio);
+  }
+
+  function onDragLeaveColuna(event: DragEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+      setDragOverEstagio(null);
+    }
+  }
+
+  function onDragEndCard() {
+    setDraggingDealId(null);
+    setDragOverEstagio(null);
   }
 
   async function onDropColuna(estagioDestino: Estagio) {
     const dealId = draggingDealId;
     setDraggingDealId(null);
+    setDragOverEstagio(null);
     if (!dealId) return;
 
     const rowAtual = rows.find((r) => r.deal?.id === dealId);
@@ -157,40 +172,20 @@ export default function ClientesPage() {
       {view === "kanban" ? (
         <div className="grid grid-cols-4 gap-4">
           {ESTAGIOS.map((estagio) => (
-            <div
+            <KanbanColuna
               key={estagio}
-              className="rounded-lg border bg-card p-3"
-              onDragOver={onDragOverColuna}
-              onDrop={(e) => {
-                e.preventDefault();
-                onDropColuna(estagio);
-              }}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold">{ESTAGIO_LABELS[estagio]}</span>
-                <span className="text-xs text-muted-foreground">{porEstagio[estagio].length}</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {porEstagio[estagio].map(({ contact, deal, nivelRisco }) => (
-                  <Link
-                    key={contact.id}
-                    to={`/clientes/${contact.id}`}
-                    draggable={!!deal && !atualizandoEstagio}
-                    onDragStart={() => deal && onDragStartCard(deal.id)}
-                    onDragEnd={() => setDraggingDealId(null)}
-                    className={`block rounded-md border p-3 text-sm hover:bg-accent ${
-                      deal ? "cursor-grab active:cursor-grabbing" : ""
-                    }`}
-                  >
-                    <div className="font-medium">{contact.nome}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">{contact.segmento}</div>
-                    <span className={`mt-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${RISCO_BADGE[nivelRisco]}`}>
-                      {RISCO_LABEL[nivelRisco]}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+              estagio={estagio}
+              label={ESTAGIO_LABELS[estagio]}
+              rows={porEstagio[estagio]}
+              draggingDealId={draggingDealId}
+              dragOverEstagio={dragOverEstagio}
+              atualizandoEstagio={atualizandoEstagio}
+              onDragStartCard={onDragStartCard}
+              onDragEndCard={onDragEndCard}
+              onDragOverColuna={onDragOverColuna}
+              onDragLeaveColuna={onDragLeaveColuna}
+              onDropColuna={onDropColuna}
+            />
           ))}
         </div>
       ) : (
